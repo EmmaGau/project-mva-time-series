@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy import ndimage
 from scipy.stats import binom
 from scipy.ndimage import gaussian_filter
+import scipy.signal
 
 #####################
 # Synthetic data generation
@@ -63,6 +64,24 @@ def generate_global_map(grid_length:int=50, max_blobs:int=3):
         map += blob  # Add blob to the map
 
     return map
+
+def get_random_spatially_correlated_noise(grid_length, correlation_scale=1):
+    """
+    Creates a 2D map of size (grid_length, grid_length) with spatially correlated noise
+    """
+    # Compute filter kernel with radius cor_length 
+    cor_length = grid_length * correlation_scale
+    x = np.arange(-cor_length, cor_length)
+    y = np.arange(-cor_length, cor_length)
+    X, Y = np.meshgrid(x, y)
+    dist = np.sqrt(X*X + Y*Y)
+    sigma_2 = grid_length * correlation_scale
+    filter_kernel = np.exp(-dist**2/(2*sigma_2))
+
+    # Generate n-by-n grid of spatially correlated noise
+    noise = np.random.randn(grid_length, grid_length) #random white gaussian noise
+    noise = scipy.signal.fftconvolve(noise, filter_kernel, mode='same') #blur the noise with gaussian kernel
+    return noise
 
 #######################
 

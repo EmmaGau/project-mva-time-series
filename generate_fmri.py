@@ -25,13 +25,9 @@ class Dataset_fmri:
         self.ksi  = ksi
 
         latent_maps = np.array([generate_global_map(grid_length=self.grid_length, max_blobs=3) for _ in range(k)])
-        self.V = latent_maps.reshape((k, grid_length**2)) # careful: V.T in the article
+        self.V = latent_maps.reshape((grid_length**2, k))
 
         self.patient_list = []
-
-
-    def generate_global_map(self, prior_type="smooth_lasso"):
-        pass
 
 
 class Patient:
