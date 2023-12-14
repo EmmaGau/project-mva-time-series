@@ -66,7 +66,7 @@ def generate_global_map(grid_length:int=50, max_blobs:int=3):
 
     return map
 
-def get_random_spatially_correlated_noise(grid_length, sigma=1, correlation_scale=1):
+def get_random_spatially_correlated_noise(grid_length:int, sigma:float=1, correlation_scale:float=1, sigma_final:float=3):
     """
     Creates a 2D map of size (grid_length, grid_length) with spatially correlated noise
     """
@@ -82,24 +82,26 @@ def get_random_spatially_correlated_noise(grid_length, sigma=1, correlation_scal
     # Generate n-by-n grid of spatially correlated noise
     noise = sigma*np.random.randn(grid_length, grid_length) #random white gaussian noise
     noise = scipy.signal.fftconvolve(noise, filter_kernel, mode='same') #blur the noise with gaussian kernel
+    noise = sigma_final * (noise/noise.std()) #rescale the noise so that its std deviation is sigma_final
     return noise
+
+#### deprecated
+# def generate_correlated_noise(k, scale=1.0, correlation_length=10):
+#     # Generate grid coordinates
+#     x, y = np.meshgrid(np.arange(k), np.arange(k))
+#     coords = np.stack((x, y), axis=-1)
+
+#     # Create a covariance matrix based on distance
+#     distances = np.sqrt(np.sum((coords[:, :, np.newaxis, np.newaxis] - coords[np.newaxis, np.newaxis, :, :]) ** 2, axis=-1))
+#     covariance_matrix = np.exp(-distances / correlation_length)
+
+#     # Generate multivariate normal noise
+#     noise = np.random.multivariate_normal(mean=np.zeros(k**2), cov=covariance_matrix * scale).reshape(k, k)
+#     return noise
 
 #######################
 
 #######################
-
-def generate_correlated_noise(k, scale=1.0, correlation_length=10):
-    # Generate grid coordinates
-    x, y = np.meshgrid(np.arange(k), np.arange(k))
-    coords = np.stack((x, y), axis=-1)
-
-    # Create a covariance matrix based on distance
-    distances = np.sqrt(np.sum((coords[:, :, np.newaxis, np.newaxis] - coords[np.newaxis, np.newaxis, :, :]) ** 2, axis=-1))
-    covariance_matrix = np.exp(-distances / correlation_length)
-
-    # Generate multivariate normal noise
-    noise = np.random.multivariate_normal(mean=np.zeros(k**2), cov=covariance_matrix * scale).reshape(k, k)
-    return noise
 
 def laplacian(v_grid):
     """
@@ -123,6 +125,7 @@ def omega(v_grid):
 
     return norm1_v + 1/2 * vT_lv
 
+### deprecated
 def laplacian_old(v_grid):
     """
     returns Lv where L is the laplacian operator
@@ -139,14 +142,14 @@ def laplacian_old(v_grid):
             Lv[i0, j0] = v_grid_padded[i0+1,j0] + v_grid_padded[i0,j0+1] + v_grid_padded[i0-1,j0] + v_grid_padded[i0,j0-1] - 4*v_grid_padded[i0,j0]
     return Lv[1:-1, 1:-1]
 
-def get_init_V(data_fmri, nb_components=20):
+def get_init_V(data_fmri: np.ndarray, n_components: int) -> np.ndarray:
     S, n, p1, _ = data_fmri.shape
-    p = p1 ** 2
-    X = data_fmri.reshape(p, S*n)
-    k = 7
-    transformer = FastICA(n_components=k, 
-                        random_state=0,
-                        whiten='unit-variance')
-    X_transformed = transformer.fit_transform(X)
-    X_transformed = X_transformed.reshape(p1, p1, k)
-    return X_transformed
+    X = data_fmri.reshape(S*n, p1, p1)
+    X = X.reshape(S*n, p1 * p1) #in 2 steps in case it causes problems
+    ica_estimator = FastICA(
+                    n_components=n_components, max_iter=400, whiten="arbitrary-variance", tol=15e-5)
+    ica_estimator.fit(X)
+
+    components = ica_estimator.components_[:n_components]
+    
+    return components
