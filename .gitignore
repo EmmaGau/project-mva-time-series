@@ -161,3 +161,6 @@ cython_debug/
 #.idea/
 
 *.npy
+nilearn_cache/
+.pdf
+*.nii.gz
