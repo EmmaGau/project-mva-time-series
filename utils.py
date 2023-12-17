@@ -103,7 +103,7 @@ def get_random_spatially_correlated_noise(grid_length:int, sigma:float=1, correl
 
 #######################
 
-def laplacian(v_grid):
+def laplacian_grid(v_grid):
     """
     returns Lv where L is the laplacian operator
     v is a np.array of size p1*p2
@@ -114,13 +114,14 @@ def laplacian(v_grid):
     lv = ndimage.convolve(v_grid, kernel, mode='nearest')
     return lv
 
+
 def omega(v_grid):
     """
     returns omega(v) where v is a np array of size p1*p2
     """
     norm1_v = np.sum(np.abs(v_grid))
 
-    lv = laplacian(v_grid)
+    lv = laplacian_grid(v_grid)
     vT_lv = np.sum(v_grid * lv)
 
     return norm1_v + 1/2 * vT_lv
@@ -153,3 +154,62 @@ def get_init_V(data_fmri: np.ndarray, n_components: int) -> np.ndarray:
     components = ica_estimator.components_[:n_components]
     
     return components
+
+def get_corr_matrix(V_maps1: np.ndarray, V_maps2:np.ndarray) -> np.ndarray:
+    """
+    V_maps1 and V_maps2 are arrays of size (k, p, p) where
+    -k is the number of components in the map
+    -p is the grid size 
+    """
+    k , p, _ = V_maps1.shape
+    corr_matrix = np.zeros((k,k))
+    for i in range(k):
+        for j in range(i, k):
+            #print(np.corrcoef(V_maps1[i].ravel(),V_maps2[j].ravel())[0, 1])
+            corr_matrix[i, j] = np.abs(np.corrcoef(V_maps1[i].ravel(),V_maps2[j].ravel())[0, 1])
+            corr_matrix[j, i] = corr_matrix[i, j]
+    return corr_matrix
+
+
+def greedy_matching(set_1, set_2, corr_matrix):
+    """
+    Finds a matching pairwise between the elements of set_1 and set_2 given the correlation matrix of their elements
+    """
+    matched_indices = set()
+    matched_pairs = []
+
+    # Iterate through set_1
+    for i in range(len(set_1)):
+        max_corr = -np.inf
+        best_pair = None
+
+        # Iterate through set_2 to find the best unmatched pair
+        for j in range(len(set_2)):
+            if j not in matched_indices:
+                if corr_matrix[i, j] > max_corr:
+                    max_corr = corr_matrix[i, j]
+                    best_pair = (i, j)
+
+        # Mark the best pair as matched
+        if best_pair:
+            matched_indices.add(best_pair[1])
+            matched_pairs.append(best_pair)
+
+    # Reorder set_2 based on the matched pairs
+    reordered_set_2 = [set_2[j] for i, j in sorted(matched_pairs)]
+
+    return reordered_set_2
+
+def reorder_maps(real_latent_maps, predicted_maps):
+    """
+    Inputs: 
+    -real_latent_maps: array of size (k, p, p) where k is the number of components and p grid size
+    -predicted_maps: array of size (k, p, p) where k is the number of components and p grid size
+
+    Returns: 
+    -reordered_predicted_maps: array of size (k, p, p) where k is the number of components and p grid size with maps reordered
+    """
+    corr_matrix = get_corr_matrix(real_latent_maps, predicted_maps)
+    predicted_maps_reordered = greedy_matching(real_latent_maps, predicted_maps, corr_matrix)
+
+    return predicted_maps_reordered
