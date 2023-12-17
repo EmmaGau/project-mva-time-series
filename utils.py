@@ -166,7 +166,7 @@ def get_corr_matrix(V_maps1: np.ndarray, V_maps2:np.ndarray) -> np.ndarray:
     for i in range(k):
         for j in range(i, k):
             #print(np.corrcoef(V_maps1[i].ravel(),V_maps2[j].ravel())[0, 1])
-            corr_matrix[i, j] = np.abs(np.corrcoef(V_maps1[i].ravel(),V_maps2[j].ravel())[0, 1])
+            corr_matrix[i, j] = np.corrcoef(V_maps1[i].ravel(),V_maps2[j].ravel())[0, 1]
             corr_matrix[j, i] = corr_matrix[i, j]
     return corr_matrix
 
@@ -212,4 +212,4 @@ def reorder_maps(real_latent_maps, predicted_maps):
     corr_matrix = get_corr_matrix(real_latent_maps, predicted_maps)
     predicted_maps_reordered = greedy_matching(real_latent_maps, predicted_maps, corr_matrix)
 
-    return predicted_maps_reordered
+    return np.array(predicted_maps_reordered)
